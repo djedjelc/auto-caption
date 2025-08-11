@@ -102,16 +102,32 @@ def render_subtitles_moviepy(video_path: str, segments: List[Dict], output_path:
         ]
         styled_text = " ".join(words)
 
-        txt_clip = TextClip(
-            styled_text,
-            font=style["font"],
-            fontsize=style["fontsize"],
-            color=style["color"],
-            stroke_color=style["stroke_color"],
-            stroke_width=style["stroke_width"],
-            method="caption",
-            size=(int(video.w * 0.9), None),  # wrap to 90% video width
-        )
+        # Try with Pillow backend first to avoid ImageMagick dependency
+        try:
+            txt_clip = TextClip(
+                styled_text,
+                font=style["font"],
+                fontsize=style["fontsize"],
+                color=style["color"],
+                stroke_color=style["stroke_color"],
+                stroke_width=style["stroke_width"],
+                method="pillow",
+                size=(int(video.w * 0.9), None),  # wrap to 90% video width
+            )
+        except Exception:
+            # Pillow backend not available in some MoviePy versions – fallback to caption (needs ImageMagick)
+            print("⚠️ Pillow backend failed, falling back to ImageMagick. Make sure ImageMagick is installed and in PATH.")
+            txt_clip = TextClip(
+                styled_text,
+                font=style["font"],
+                fontsize=style["fontsize"],
+                color=style["color"],
+                stroke_color=style["stroke_color"],
+                stroke_width=style["stroke_width"],
+                method="caption",
+                size=(int(video.w * 0.9), None),
+            )
+
         txt_clip = (
             txt_clip.set_position(style["position"])
             .set_start(seg["start"])
