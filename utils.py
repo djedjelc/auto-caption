@@ -5,6 +5,7 @@ from typing import List, Dict
 
 import whisper
 from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
+from moviepy.config import change_settings
 
 
 def extract_audio(video_path: str, audio_output_path: str | None = None) -> str:
@@ -82,7 +83,7 @@ def render_subtitles_moviepy(video_path: str, segments: List[Dict], output_path:
     """
     if style is None:
         style = {
-            "font": "Arial-Bold",
+            "font": "DejaVuSans-Bold",  # More portable default than Arial on Linux/Colab
             "fontsize": 60,
             "color": "white",
             "stroke_color": "black",
@@ -93,6 +94,15 @@ def render_subtitles_moviepy(video_path: str, segments: List[Dict], output_path:
 
     video = VideoFileClip(video_path)
     text_clips = []
+
+    # Try to locate ImageMagick binary automatically for MoviePy when Pillow is not available
+    convert_bin = shutil.which("magick") or shutil.which("convert")
+    if convert_bin:
+        change_settings({"IMAGEMAGICK_BINARY": convert_bin})
+    else:
+        # On systems without ImageMagick, TextClip with method="caption" will fail.
+        # We'll warn later if we actually fall back to it.
+        pass
 
     for seg in segments:
         # Highlight ALL-CAPS words
