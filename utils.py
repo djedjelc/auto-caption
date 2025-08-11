@@ -54,11 +54,14 @@ def generate_srt(segments: List[Dict], srt_path: str) -> str:
 
 def burn_subtitles(video_path: str, srt_path: str, output_path: str) -> None:
     """Use ffmpeg to burn the subtitles at *srt_path* into *video_path*, saving to *output_path*."""
+    # ffmpeg expects backslashes and colons in Windows paths to be escaped inside the subtitles filter.
+    # Since we pass arguments as a list (no shell), we do not need surrounding quotes.
+    filter_path = srt_path.replace("\\", "\\\\").replace(":", "\\:")
     cmd = [
         "ffmpeg",
         "-y",  # overwrite output
         "-i", video_path,
-        "-vf", f"subtitles='{srt_path.replace("\\", "\\\\").replace(':', '\\:')}'",  # escape for Windows paths
+        "-vf", f"subtitles={filter_path}",
         "-c:a", "copy",
         output_path,
     ]
