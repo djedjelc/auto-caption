@@ -4,7 +4,7 @@ import tempfile
 from typing import List, Dict
 
 import whisper
-from moviepy.editor import VideoFileClip
+from moviepy.editor import VideoFileClip, TextClip, CompositeVideoClip
 
 
 def extract_audio(video_path: str, audio_output_path: str | None = None) -> str:
@@ -65,4 +65,65 @@ def burn_subtitles(video_path: str, srt_path: str, output_path: str) -> None:
         "-c:a", "copy",
         output_path,
     ]
-    subprocess.run(cmd, check=True) 
+    subprocess.run(cmd, check=True)
+
+
+# --- Stylized subtitle rendering -------------------------------------------------
+
+def render_subtitles_moviepy(video_path: str, segments: List[Dict], output_path: str, *, style: dict | None = None) -> None:
+    """Render styled subtitles with MoviePy directly on the video.
+
+    Basic behaviour:
+    • Uses a default style (white text, black stroke).
+    • Words TYPED IN ALL CAPS are highlighted with *highlight_color*.
+    • Simple fade-in / fade-out at segment boundaries.
+
+    Feel free to tweak *style* dict to change font, colours, etc.
+    """
+    if style is None:
+        style = {
+            "font": "Arial-Bold",
+            "fontsize": 60,
+            "color": "white",
+            "stroke_color": "black",
+            "stroke_width": 2,
+            "position": ("center", "bottom"),  # (x, y)
+            "highlight_color": "yellow",
+        }
+
+    video = VideoFileClip(video_path)
+    text_clips = []
+
+    for seg in segments:
+        # Highlight ALL-CAPS words
+        words = [
+            f"<font color='{style['highlight_color']}'>{w}</font>" if w.isupper() else w
+            for w in seg["text"].strip().split()
+        ]
+        styled_text = " ".join(words)
+
+        txt_clip = TextClip(
+            styled_text,
+            font=style["font"],
+            fontsize=style["fontsize"],
+            color=style["color"],
+            stroke_color=style["stroke_color"],
+            stroke_width=style["stroke_width"],
+            method="caption",
+            size=(int(video.w * 0.9), None),  # wrap to 90% video width
+        )
+        txt_clip = (
+            txt_clip.set_position(style["position"])
+            .set_start(seg["start"])
+            .set_end(seg["end"])
+            .crossfadein(0.15)
+            .crossfadeout(0.15)
+        )
+        text_clips.append(txt_clip)
+
+    composite = CompositeVideoClip([video, *text_clips])
+    composite.write_videofile(output_path, codec="libx264", audio_codec="aac")
+
+    # Cleanup
+    composite.close()
+    video.close() 

@@ -2,7 +2,7 @@ import argparse
 import os
 import sys
 
-from utils import transcribe_audio, generate_srt, burn_subtitles
+from utils import transcribe_audio, generate_srt, burn_subtitles, render_subtitles_moviepy
 
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -30,6 +30,11 @@ def parse_args() -> argparse.Namespace:
         help="Whisper model size (tiny, base, small, medium, large)",
     )
     parser.add_argument(
+        "--stylized",
+        action="store_true",
+        help="Render subtitles with MoviePy (dynamic style) instead of basic burn-in",
+    )
+    parser.add_argument(
         "--no-burn",
         action="store_true",
         help="Only generate the .srt file without burning subtitles into the video",
@@ -51,6 +56,13 @@ def main() -> None:
     segments = transcribe_audio(video_path, model_size=args.model)
     generate_srt(segments, srt_path)
     print(f"✅ Transcript saved to {srt_path}")
+
+    if args.stylized:
+        output_path = os.path.join(OUTPUT_DIR, f"{video_stem}_stylized.mp4")
+        print("🎨 Rendering stylized subtitles with MoviePy... (can be slow)")
+        render_subtitles_moviepy(video_path, segments, output_path)
+        print(f"🚀 Done! Stylized video saved to {output_path}")
+        return
 
     if args.no_burn:
         print("⚠️ Skipping subtitle burn-in as per --no-burn flag.")
